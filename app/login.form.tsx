@@ -4,14 +4,17 @@ import { faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useState } from "react"
+import { logInUserAction } from "./loginAction";
+import { useRouter } from "next/navigation";
 
 const formClassName = "bg-slate-500 border-2 px-2 py-1 border-slate-300 dark:border-slate-700 rounded-xl mb-4";
 export default function LoginForm() {
+  const router = useRouter();
   const [server, setServer] = useState<string>("");
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [isValidServer, setValidServer] = useState<boolean>(false);
-  const publicUsers: { name: string, id: string }[] = [];
+  const [publicUsers, setPublicUsers] = useState<{ name: string, id: string, hasImage: boolean }[]>([]);
 
   function handleContinue(e: React.FormEvent) {
     e.preventDefault();
@@ -37,18 +40,27 @@ export default function LoginForm() {
       alert("Please enter a username!");
       return;
     }
-    // note: i stopped checking passwords since jellyfin users can have empty passwords
+    // note: i stopped checking passwords in the form event, since jellyfin users can have empty passwords
+    logInUserAction(username, password, server)
+      .then((result) => {
+        if (result.success) {
+          router.push("/home");
+        } else {
+          alert(`Jellyfin login failed${result.message ? ': "${result.message}"' : "!"}`);
+        }
+      })
   }
   function apiSetPublicUsers(address: string) {
     const api = jellyfin.createApi(address);
     getUserApi(api).getPublicUsers()
       .then((users) => {
         if (!users) return;
+        const usersToPush = [];
         for (const user of users.data) {
-          console.log(user);
-          publicUsers.push({ name: user.Name || "Unknown Name", id: user.Id! });
+          usersToPush.push({ name: user.Name || "Unknown Name", id: user.Id!, hasImage: user.PrimaryImageTag ? true : false });
+          setPublicUsers(usersToPush);
         }
-      })
+      });
   }
 
   return (
@@ -60,11 +72,13 @@ export default function LoginForm() {
         {!isValidServer && <button type="submit" className="rounded-full bg-violet-500 p-1"><FontAwesomeIcon icon={faChevronRight} /></button>}
       </form>
       {isValidServer && <form className="flex flex-col" onSubmit={handleLogin}>
-        <div className={formClassName}>
+        <div className={`${formClassName} flex gap-2`}>
           {publicUsers.length < 1 && <p>No public users found!</p>}
-          {publicUsers.map((user, index) => <button key={index} className="flex gap-2" onClick={() => setUsername(user.name)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`${server}/Users/${user.id}/Images/Primary`} height={30} width={30} alt={`Profile picture of user ${user.name}`} />
+          {publicUsers.map((user, index) => <button type="button" key={index} className="flex gap-2 align-middle" onClick={() => setUsername(user.name)}>
+            {user.hasImage ?
+              <img src={getPfpUrl(server, user.id)} height={30} width={30} alt={`Profile picture of user ${user.name}`} className="rounded-full" /> :
+              <div className="w-[30px] h-[30px] rounded-full bg-violet-300" />
+            }
             <p>{user.name}</p>
           </button>)}
         </div>
@@ -76,4 +90,12 @@ export default function LoginForm() {
       </form>}
     </div>
   )
+}
+
+function getPfpUrl(server: string, userId: string) {
+  if (/\/$/.test(server)) {
+    return `${server}Users/${userId}/Images/Primary`;
+  } else {
+    return `${server}/Users/${userId}/Images/Primary`;
+  }
 }
