@@ -4,8 +4,9 @@ import { faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useState } from "react"
-import { logInUserAction } from "./loginAction";
+import { logInUserAction } from "./authAction";
 import { useRouter } from "next/navigation";
+import { getPfpUrl } from "../(ui)/user";
 
 const formClassName = "bg-slate-500 border-2 px-2 py-1 border-slate-300 dark:border-slate-700 rounded-xl mb-4";
 export default function LoginForm() {
@@ -44,9 +45,9 @@ export default function LoginForm() {
     logInUserAction(username, password, server)
       .then((result) => {
         if (result.success) {
-          router.push("/home");
+          router.push("/");
         } else {
-          alert(`Jellyfin login failed${result.message ? ': "${result.message}"' : "!"}`);
+          alert(`Jellyfin login failed${result.message ? `: "${result.message}"` : "!"}`);
         }
       })
   }
@@ -76,6 +77,7 @@ export default function LoginForm() {
           {publicUsers.length < 1 && <p>No public users found!</p>}
           {publicUsers.map((user, index) => <button type="button" key={index} className="flex gap-2 align-middle" onClick={() => setUsername(user.name)}>
             {user.hasImage ?
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={getPfpUrl(server, user.id)} height={30} width={30} alt={`Profile picture of user ${user.name}`} className="rounded-full" /> :
               <div className="w-[30px] h-[30px] rounded-full bg-violet-300" />
             }
@@ -90,12 +92,4 @@ export default function LoginForm() {
       </form>}
     </div>
   )
-}
-
-function getPfpUrl(server: string, userId: string) {
-  if (/\/$/.test(server)) {
-    return `${server}Users/${userId}/Images/Primary`;
-  } else {
-    return `${server}/Users/${userId}/Images/Primary`;
-  }
 }

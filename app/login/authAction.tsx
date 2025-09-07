@@ -12,8 +12,16 @@ export async function logInUserAction(username: string, password: string, server
   }
   if (res.status.toString().startsWith("2")) {
     const cookieStore = await cookies();
-    console.log(api.accessToken);
     cookieStore.set("jf_token", api.accessToken);
+    cookieStore.set("jf_server", server);
     return { success: true, message: res.statusText };
   } else return { success: false, message: res.statusText };
+}
+
+export async function logOutUserAction() {
+  const cookieStore = await cookies();
+  const api = jellyfin.createApi(cookieStore.get("jf_server")!.value, cookieStore.get("jf_token")!.value);
+  cookieStore.delete("jf_token");
+  cookieStore.delete("jf_server");
+  api.logout();
 }

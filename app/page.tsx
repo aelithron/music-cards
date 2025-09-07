@@ -1,12 +1,17 @@
-import LoginForm from "./login.form";
+import { jellyfin } from "@/client";
+import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import { cookies } from "next/headers";
+import { UserProfile } from "./(ui)/user";
 
-export default function Home() {
+export default async function Page() {
+  const cookieStore = await cookies();
+  const server = cookieStore.get('jf_server')!.value;
+  const api = jellyfin.createApi(server, cookieStore.get('jf_token')!.value);
+  const user = await getUserApi(api).getCurrentUser();
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 min-h-screen p-8 md:p-20">
-      <div className="flex flex-col gap-2 items-center bg-violet-500">
-
-      </div>
-      <LoginForm />
+    <div className="flex flex-col min-h-screen p-8 md:p-20">
+      <UserProfile user={user.data} server={server} />
     </div>
   );
 }
